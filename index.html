@@ -4,18 +4,32 @@
     <meta charset="UTF-8">
     <title>색상 보물상자</title>
     <style>
+        /* [수정] 전체적으로 글자 선택(파랗게 블록 잡기)을 금지함 */
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh; /* 기록이 늘어날 수 있으니 min-height로 변경 */
+            min-height: 100vh;
             margin: 0;
             padding: 20px;
             transition: background-color 0.3s ease; 
             font-family: 'Arial', sans-serif;
             box-sizing: border-box;
+            user-select: none; /* 전체 선택 금지 */
+            -webkit-user-select: none;
         }
+
+        /* [수정] 하지만 색상 코드는 복사해야 하니까 이것만 선택 가능하게 함 */
+        #hexCode { 
+            font-size: 3rem; 
+            font-weight: bold; 
+            color: #222; 
+            display: block; 
+            user-select: text; /* 색상 코드만 드래그 가능 */
+            -webkit-user-select: text;
+        }
+
         h1 { color: #333; margin-bottom: 20px; text-shadow: 0 1px 2px rgba(255,255,255,0.5); }
         
         .info-container {
@@ -31,7 +45,6 @@
         }
         .info-container:hover { transform: scale(1.05); }
 
-        #hexCode { font-size: 3rem; font-weight: bold; color: #222; display: block; }
         .copy-hint { font-size: 0.9rem; color: #777; margin-top: 10px; font-weight: bold; }
 
         button {
@@ -48,7 +61,6 @@
         }
         button:hover { background-color: #444; transform: translateY(-3px); }
 
-        /* 기록장 스타일 */
         .history-title { font-weight: bold; color: #333; margin-bottom: 10px; }
         .history-container {
             display: flex;
@@ -56,6 +68,7 @@
             gap: 10px;
             justify-content: center;
             max-width: 500px;
+            height: 65px; /* 줄바꿈 방지 및 고정 높이 */
         }
         .history-item {
             width: 50px;
@@ -80,9 +93,8 @@
 
     <button onclick="changeColor()">새로운 색상 뽑기!</button>
 
-    <div class="history-title">최근 뽑은 색상 (클릭 시 복사)</div>
-    <div id="historyBox" class="history-container">
-        </div>
+    <div class="history-title">최근 8개 색상 (클릭 시 복사)</div>
+    <div id="historyBox" class="history-container"></div>
 
     <script>
         let currentHex = "";
@@ -100,30 +112,32 @@
             const newColor = generateRandomColor();
             currentHex = newColor;
             
-            // 배경 및 글자 변경
             document.body.style.backgroundColor = newColor;
             document.getElementById('hexCode').innerText = newColor;
             document.getElementById('mainTitle').innerText = "이 색으로 칠해보세요!";
             document.getElementById('hintText').innerText = "클릭하면 색상코드가 복사됩니다!";
 
-            // 기록 추가
             addHistory(newColor);
         }
 
         function addHistory(color) {
             const historyBox = document.getElementById('historyBox');
+            
+            // [수정] 기록이 8개가 넘으면 가장 오래된 것(마지막 것) 삭제
+            if (historyBox.children.length >= 8) {
+                historyBox.removeChild(historyBox.lastChild);
+            }
+
             const newItem = document.createElement('div');
             newItem.className = 'history-item';
             newItem.style.backgroundColor = color;
-            newItem.title = color; // 마우스 올리면 색상코드 표시
+            newItem.title = color;
             
-            // 기록된 색상 클릭해도 복사되게 만들기
             newItem.onclick = function() {
                 navigator.clipboard.writeText(color);
                 alert("기록된 색상이 복사되었습니다: " + color);
             };
 
-            // 최신 색상이 맨 앞에 오게 추가
             historyBox.prepend(newItem);
         }
 
