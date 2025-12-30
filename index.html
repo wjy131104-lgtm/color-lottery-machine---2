@@ -2,22 +2,24 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>랜덤색상 뽑기</title>
+    <title>색상 보물상자</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh; /* 기록이 늘어날 수 있으니 min-height로 변경 */
             margin: 0;
+            padding: 20px;
             transition: background-color 0.3s ease; 
             font-family: 'Arial', sans-serif;
+            box-sizing: border-box;
         }
         h1 { color: #333; margin-bottom: 20px; text-shadow: 0 1px 2px rgba(255,255,255,0.5); }
         
         .info-container {
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.85);
             padding: 30px 50px;
             border-radius: 20px;
             text-align: center;
@@ -28,7 +30,6 @@
             transition: transform 0.2s;
         }
         .info-container:hover { transform: scale(1.05); }
-        .info-container:active { transform: scale(0.98); }
 
         #hexCode { font-size: 3rem; font-weight: bold; color: #222; display: block; }
         .copy-hint { font-size: 0.9rem; color: #777; margin-top: 10px; font-weight: bold; }
@@ -43,26 +44,49 @@
             color: white;
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             transition: 0.2s;
+            margin-bottom: 40px;
         }
         button:hover { background-color: #444; transform: translateY(-3px); }
-        button:active { transform: translateY(1px); }
+
+        /* 기록장 스타일 */
+        .history-title { font-weight: bold; color: #333; margin-bottom: 10px; }
+        .history-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 500px;
+        }
+        .history-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .history-item:hover { transform: translateY(-5px); }
     </style>
 </head>
 <body id="mainBody">
 
-    <h1>무한 랜덤 색상기</h1>
+    <h1 id="mainTitle">어떤 색을 사용할지 난감할 때?</h1>
     
     <div class="info-container" onclick="copyColor()">
         <span id="hexCode">#??????</span>
-        <div class="copy-hint">이 박스를 클릭하면 색상코드가 복사됩니다!</div>
+        <div id="hintText" class="copy-hint">버튼을 눌러 색상을 뽑아보세요!</div>
     </div>
 
     <button onclick="changeColor()">새로운 색상 뽑기!</button>
 
-    <script>
-        let currentHex = "#FFFFFF";
+    <div class="history-title">최근 뽑은 색상 (클릭 시 복사)</div>
+    <div id="historyBox" class="history-container">
+        </div>
 
-        // 완전 랜덤 색상 생성기 (16진수)
+    <script>
+        let currentHex = "";
+
         function generateRandomColor() {
             const letters = '0123456789ABCDEF';
             let color = '#';
@@ -76,19 +100,39 @@
             const newColor = generateRandomColor();
             currentHex = newColor;
             
+            // 배경 및 글자 변경
             document.body.style.backgroundColor = newColor;
             document.getElementById('hexCode').innerText = newColor;
+            document.getElementById('mainTitle').innerText = "이 색으로 칠해보세요!";
+            document.getElementById('hintText').innerText = "클릭하면 색상코드가 복사됩니다!";
+
+            // 기록 추가
+            addHistory(newColor);
+        }
+
+        function addHistory(color) {
+            const historyBox = document.getElementById('historyBox');
+            const newItem = document.createElement('div');
+            newItem.className = 'history-item';
+            newItem.style.backgroundColor = color;
+            newItem.title = color; // 마우스 올리면 색상코드 표시
+            
+            // 기록된 색상 클릭해도 복사되게 만들기
+            newItem.onclick = function() {
+                navigator.clipboard.writeText(color);
+                alert("기록된 색상이 복사되었습니다: " + color);
+            };
+
+            // 최신 색상이 맨 앞에 오게 추가
+            historyBox.prepend(newItem);
         }
 
         function copyColor() {
-            // 클립보드 복사 기능
+            if(!currentHex) return;
             navigator.clipboard.writeText(currentHex).then(() => {
                 alert("복사 완료! : " + currentHex);
             });
         }
-
-        // 처음에 한 번 실행
-        changeColor();
     </script>
 </body>
 </html>
