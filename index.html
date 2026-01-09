@@ -128,27 +128,49 @@
 
     <script>
         const menuData = [
-            // 한식
+            // 한식 (25개)
             { name: "삼겹살", emoji: "🥓", color: "#FF7675" }, { name: "김치찌개", emoji: "🥘", color: "#FF4D4D" },
             { name: "제육볶음", emoji: "🍛", color: "#E17055" }, { name: "비빔밥", emoji: "🥗", color: "#55EF8B" },
-            { name: "순대국밥", emoji: "🍲", color: "#FDCB6E" }, { name: "부대찌개", emoji: "🥘", color: "#FF4D4D" },
+            { name: "순대국밥", emoji: "🍲", color: "#FDCB6E" }, { name: "된장찌개", emoji: "🥣", color: "#A0522D" },
+            { name: "냉면", emoji: "🍜", color: "#74B9FF" }, { name: "부대찌개", emoji: "🥘", color: "#FF4D4D" },
             { name: "보쌈", emoji: "🥩", color: "#FFEAA7" }, { name: "찜닭", emoji: "🐔", color: "#E67E22" },
             { name: "육회비빔밥", emoji: "🥩", color: "#D63031" }, { name: "갈비탕", emoji: "🥣", color: "#BDC3C7" },
-            { name: "뼈해장국", emoji: "🦴", color: "#576574" }, { name: "낙지볶음", emoji: "🐙", color: "#FF4757" },
-            // 일식
+            { name: "콩나물국밥", emoji: "🍲", color: "#F1C40F" }, { name: "고등어구이", emoji: "🐟", color: "#74B9FF" },
+            { name: "소불고기", emoji: "🥩", color: "#AD9178" }, { name: "칼국수", emoji: "🍜", color: "#F5F6FA" },
+            { name: "수제비", emoji: "🥣", color: "#DCDDE1" }, { name: "닭도리탕", emoji: "🍗", color: "#EA2027" },
+            { name: "아구찜", emoji: "🐡", color: "#EE5253" }, { name: "돌솥비빔밥", emoji: "🍚", color: "#FF9F43" },
+            { name: "청국장", emoji: "🍲", color: "#8B4513" }, { name: "곰탕", emoji: "🥣", color: "#F1F2F6" },
+            { name: "산채비빔밥", emoji: "🌿", color: "#10AC84" }, { name: "뼈해장국", emoji: "🦴", color: "#576574" },
+            { name: "낙지볶음", emoji: "🐙", color: "#FF4757" },
+
+            // 일식 (15개)
             { name: "초밥", emoji: "🍣", color: "#FAB1A0" }, { name: "라멘", emoji: "🍜", color: "#FFEAA7" },
             { name: "돈카츠", emoji: "🐷", color: "#E17055" }, { name: "우동", emoji: "🥢", color: "#74B9FF" },
-            { name: "텐동", emoji: "🍤", color: "#F1C40F" }, { name: "소바", emoji: "🧊", color: "#95A5A6" },
-            // 중식
+            { name: "가츠동", emoji: "🥣", color: "#AD9178" }, { name: "텐동", emoji: "🍤", color: "#F1C40F" },
+            { name: "사케동", emoji: "🍣", color: "#FF7675" }, { name: "소바", emoji: "🧊", color: "#95A5A6" },
+            { name: "오코노미야끼", emoji: "🍳", color: "#E67E22" }, { name: "회덮밥", emoji: "🍚", color: "#55EFC4" },
+            { name: "카레라이스", emoji: "🍛", color: "#F9CA24" }, { name: "규동", emoji: "🥣", color: "#AD9178" },
+            { name: "야끼소바", emoji: "🍝", color: "#2D3436" }, { name: "장어덮밥", emoji: "🐍", color: "#2F3542" },
+            { name: "나베", emoji: "🍲", color: "#FF9F43" },
+
+            // 중식 (10개)
             { name: "짜장면", emoji: "🥢", color: "#2D3436" }, { name: "짬뽕", emoji: "🔥", color: "#FF4757" },
             { name: "탕수육", emoji: "🍍", color: "#F9CA24" }, { name: "마라탕", emoji: "🌶️", color: "#D63031" },
-            { name: "꿔바로우", emoji: "🍖", color: "#F0932B" },
-            // 양식/기타
-            { name: "치즈버거", emoji: "🍔", color: "#FDCB6E" }, { name: "페퍼로니피자", emoji: "🍕", color: "#F1C40F" },
-            { name: "파스타", emoji: "🍝", color: "#FFEAA7" }, { name: "스테이크", emoji: "🥩", color: "#636E72" },
-            { name: "치킨", emoji: "🍗", color: "#E67E22" }, { name: "쌀국수", emoji: "🌿", color: "#A29BFE" },
-            { name: "서브웨이", emoji: "🥖", color: "#009432" }, { name: "타코", emoji: "🌮", color: "#F39C12" }
-            // (메뉴가 너무 많아 예시로 줄였으나 원하시는 만큼 더 추가하셔도 됩니다!)
+            { name: "꿔바로우", emoji: "🍖", color: "#F0932B" }, { name: "마파두부", emoji: "🥘", color: "#EA2027" },
+            { name: "볶음밥", emoji: "🍚", color: "#F1C40F" }, { name: "유린기", emoji: "🥗", color: "#10AC84" },
+            { name: "양꼬치", emoji: "🍢", color: "#E67E22" }, { name: "딤섬", emoji: "🥟", color: "#F5F6FA" },
+
+            // 양식/기타 (20개)
+            { name: "스테이크", emoji: "🥩", color: "#636E72" }, { name: "치즈버거", emoji: "🍔", color: "#FDCB6E" },
+            { name: "페퍼로니피자", emoji: "🍕", color: "#F1C40F" }, { name: "까르보나라", emoji: "🍝", color: "#FFEAA7" },
+            { name: "알리오올리오", emoji: "🧄", color: "#F5F6FA" }, { name: "리조또", emoji: "🥣", color: "#BDC3C7" },
+            { name: "샌드위치", emoji: "🥪", color: "#81ECEC" }, { name: "샐러드", emoji: "🥗", color: "#55EFC4" },
+            { name: "타코", emoji: "🌮", color: "#F39C12" }, { name: "퀘사디아", emoji: "🧀", color: "#F1C40F" },
+            { name: "치킨", emoji: "🍗", color: "#E67E22" }, { name: "팟타이", emoji: "🥜", color: "#E67E22" },
+            { name: "쌀국수", emoji: "🌿", color: "#A29BFE" }, { name: "나시고랭", emoji: "🍛", color: "#E17055" },
+            { name: "똠양꿍", emoji: "🥘", color: "#EE5253" }, { name: "서브웨이", emoji: "🥖", color: "#009432" },
+            { name: "베이글", emoji: "🥯", color: "#AD9178" }, { name: "포케", emoji: "🥣", color: "#55EFC4" },
+            { name: "부리또", emoji: "🌯", color: "#F39C12" }, { name: "에그인헬", emoji: "🍳", color: "#D63031" }
         ];
 
         function recommendMenu() {
