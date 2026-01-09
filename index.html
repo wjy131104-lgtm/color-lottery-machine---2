@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2주차: 점매추! 🍱</title>
+    <title>1주차 점심메뉴추천기 🍱</title>
     <style>
         /* CSS 스타일 */
         * {
             box-sizing: border-box;
             font-family: 'Pretendard', -apple-system, sans-serif;
-            transition: background-color 0.5s ease; /* 배경색 변경 애니메이션 */
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
@@ -18,8 +18,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0; /* 초기 배경색 */
+            min-height: 100vh;
+            background-color: #f0f0f0;
         }
 
         .main-container {
@@ -38,10 +38,10 @@
         }
 
         .menu-card {
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.95);
             padding: 50px 20px;
             border-radius: 35px;
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
             margin-bottom: 30px;
         }
 
@@ -53,105 +53,122 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
         }
 
         #menu-emoji {
-            font-size: 4.5rem;
+            font-size: 5rem;
         }
 
         #guide-text {
             color: #8E8E8E;
             font-size: 1rem;
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
         #draw-btn {
             background-color: #1A1A1A;
             color: white;
             border: none;
-            padding: 18px 45px;
+            padding: 20px 50px;
             border-radius: 50px;
             font-size: 1.4rem;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.2s;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
 
-        #draw-btn:active {
-            transform: scale(0.95);
-        }
+        #draw-btn:disabled { background-color: #666; cursor: not-allowed; }
 
-        .history-container {
-            margin-top: 40px;
-        }
-
-        .history-title {
-            color: #2D2D2D;
-            font-weight: 700;
-            font-size: 1rem;
-            margin-bottom: 15px;
-        }
-
-        .history-box {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+        .history-container { margin-top: 40px; }
+        .history-title { color: #2D2D2D; font-weight: 700; font-size: 1.1rem; margin-bottom: 15px; }
+        .history-box { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
 
         .history-item {
             width: 65px;
             height: 65px;
             background: white;
-            border-radius: 15px;
+            border-radius: 18px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: bold;
-            border: 2.5px solid white;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            border: 3px solid transparent;
         }
     </style>
 </head>
 <body>
 
     <div class="main-container">
-        <h1 class="main-title">오늘 이 메뉴 어때요!</h1>
+        <h1 class="main-title">1주차 점심메뉴추천기</h1>
         
         <div class="menu-card">
             <div id="menu-display">
-                <span id="menu-emoji">❓</span>
-                <span id="menu-name">메뉴 대기 중</span>
+                <span id="menu-emoji">🍽️</span>
+                <span id="menu-name">오늘 뭐 먹지?</span>
             </div>
-            <p id="guide-text">버튼을 눌러 메뉴를 뽑아보세요!</p>
+            <p id="guide-text">버튼을 눌러 40가지 메뉴 중 골라보세요!</p>
         </div>
 
         <button id="draw-btn" onclick="recommendMenu()">새로운 메뉴 뽑기!</button>
 
         <div class="history-container">
-            <p class="history-title">최근 8개 메뉴 (클릭 시 복구)</p>
+            <p class="history-title">최근 8개 기록</p>
             <div id="history-box" class="history-box"></div>
         </div>
     </div>
 
     <script>
-        // 메뉴 데이터: 이름, 이모지, 대표 색상
         const menuData = [
+            // 한식
             { name: "삼겹살", emoji: "🥓", color: "#FF7675" },
+            { name: "김치찌개", emoji: "🥘", color: "#FF4D4D" },
+            { name: "제육덮밥", emoji: "🍛", color: "#E17055" },
+            { name: "비빔밥", emoji: "🥗", color: "#55EF8B" },
+            { name: "국밥", emoji: "🍲", color: "#FDCB6E" },
+            { name: "불고기", emoji: "🥩", color: "#D63031" },
+            { name: "떡볶이", emoji: "🍢", color: "#FF3E3E" },
+            { name: "냉면", emoji: "🍜", color: "#A29BFE" },
+            { name: "닭갈비", emoji: "🐔", color: "#E67E22" },
+            { name: "감자탕", emoji: "🦴", color: "#8B4513" },
+            // 일식
             { name: "초밥", emoji: "🍣", color: "#FAB1A0" },
-            { name: "마라탕", emoji: "🥘", color: "#D63031" },
-            { name: "햄버거", emoji: "🍔", color: "#FDCB6E" },
+            { name: "라멘", emoji: "🍜", color: "#FFEAA7" },
             { name: "돈가스", emoji: "🐷", color: "#E17055" },
+            { name: "우동", emoji: "🥢", color: "#74B9FF" },
+            { name: "규동", emoji: "🥣", color: "#AD9178" },
+            { name: "소바", emoji: "🧊", color: "#95A5A6" },
+            // 중식
+            { name: "짜장면", emoji: "🥢", color: "#2D3436" },
+            { name: "짬뽕", emoji: "🔥", color: "#FF7675" },
+            { name: "탕수육", emoji: "🍍", color: "#F9CA24" },
+            { name: "마라탕", emoji: "🌶️", color: "#D63031" },
+            { name: "꿔바로우", emoji: "🍖", color: "#F0932B" },
+            // 양식/기타
+            { name: "햄버거", emoji: "🍔", color: "#FDCB6E" },
+            { name: "피자", emoji: "🍕", color: "#F1C40F" },
             { name: "파스타", emoji: "🍝", color: "#FFEAA7" },
+            { name: "샌드위치", emoji: "🥪", color: "#81ECEC" },
+            { name: "스테이크", emoji: "🍴", color: "#636E72" },
             { name: "샐러드", emoji: "🥗", color: "#55EFC4" },
+            { name: "타코", emoji: "🌮", color: "#F39C12" },
             { name: "치킨", emoji: "🍗", color: "#E67E22" },
-            { name: "쌀국수", emoji: "🍜", color: "#A29BFE" },
-            { name: "샌드위치", emoji: "🥪", color: "#81ECEC" }
+            { name: "쌀국수", emoji: "🌿", color: "#A29BFE" },
+            { name: "팟타이", emoji: "🥜", color: "#E67E22" },
+            { name: "커리", emoji: "🍛", color: "#F1C40F" },
+            // 가벼운 메뉴
+            { name: "김밥", emoji: "🍙", color: "#2D3436" },
+            { name: "토스트", emoji: "🍞", color: "#FAB1A0" },
+            { name: "베이글", emoji: "🥯", color: "#AD9178" },
+            { name: "그릭요거트", emoji: "🥣", color: "#74B9FF" },
+            { name: "서브웨이", emoji: "🥖", color: "#009432" },
+            { name: "죽", emoji: "🥣", color: "#BDC3C7" },
+            { name: "만두", emoji: "🥟", color: "#F5F6FA" },
+            { name: "라면", emoji: "🔥", color: "#EA2027" }
         ];
 
         function recommendMenu() {
@@ -162,20 +179,19 @@
             
             btn.disabled = true;
             let count = 0;
-
             const shuffle = setInterval(() => {
                 const random = menuData[Math.floor(Math.random() * menuData.length)];
                 emojiDisplay.innerText = random.emoji;
                 nameDisplay.innerText = random.name;
-                body.style.backgroundColor = random.color; // 배경색 실시간 변경
+                body.style.backgroundColor = random.color;
                 count++;
 
-                if (count > 12) {
+                if (count > 20) { // 셔플 횟수를 늘려 더 긴장감 있게!
                     clearInterval(shuffle);
                     btn.disabled = false;
                     addHistory(random);
                 }
-            }, 80);
+            }, 60);
         }
 
         function addHistory(menu) {
@@ -183,7 +199,7 @@
             const item = document.createElement('div');
             item.className = 'history-item';
             item.innerHTML = `<span>${menu.emoji}</span><span>${menu.name}</span>`;
-            item.style.border = `2.5px solid ${menu.color}`;
+            item.style.borderColor = menu.color;
             
             item.onclick = () => {
                 document.getElementById('menu-emoji').innerText = menu.emoji;
