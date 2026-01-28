@@ -2,10 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>강력한 폭발 효과</title>
+    <title>정밀 물리 유리 파괴</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0a0a0a; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        canvas { background: #000; cursor: crosshair; }
+        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
@@ -18,26 +18,30 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        let particles = [];
-        let box = { x: canvas.width / 2 - 50, y: canvas.height / 2 - 50, size: 100, alive: true };
+        let shards = [];
+        let isBroken = false;
 
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                // 파편 크기 다양화 (1px ~ 6px)
-                this.size = Math.random() * 5 + 1;
+        class Shard {
+            constructor(points, centerX, centerY, targetX, targetY) {
+                this.points = points; // 다각형 꼭짓점들
+                this.x = centerX;
+                this.y = centerY;
                 
-                // 폭발 초기 속도 (훨씬 빠르게 설정)
-                const angle = Math.random() * Math.PI * 2;
-                const force = Math.random() * 15 + 5; // 튕겨나가는 힘
-                this.vx = Math.cos(angle) * force;
-                this.vy = Math.sin(angle) * force;
+                // 폭발 물리: 충격 지점에서 멀어지는 방향으로 가속도 부여
+                const angle = Math.atan2(centerY - targetY, centerX - targetX);
+                const dist = Math.hypot(centerX - targetX, centerY - targetY);
+                const force = (500 / (dist + 50)) * 10; // 가까울수록 강한 힘
+
+                this.vx = Math.cos(angle) * force + (Math.random() - 0.5) * 5;
+                this.vy = Math.sin(angle) * force + (Math.random() - 0.5) * 5;
                 
-                this.gravity = 0.4;    // 묵직하게 떨어지는 중력
-                this.friction = 0.96;   // 공기 저항 (폭발 후 서서히 느려짐)
-                this.alpha = 1;         // 투명도
-                this.color = color;
+                this.rotation = 0;
+                this.vRotation = (Math.random() - 0.5) * 0.4; // 회전 속도
+                
+                this.gravity = 0.6;
+                this.friction = 0.98; // 공기 저항
+                this.bounce = -0.4;   // 바닥 탄성
+                this.alpha = 1;
             }
 
             update() {
@@ -46,72 +50,104 @@
                 this.vy += this.gravity;
                 this.x += this.vx;
                 this.y += this.vy;
-                this.alpha -= 0.015; // 파편이 사라지는 속도
+                this.rotation += this.vRotation;
+
+                // 바닥 충돌 물리
+                if (this.y > canvas.height - 20) {
+                    this.y = canvas.height - 20;
+                    this.vy *= this.bounce;
+                    this.vRotation *= 0.8; // 마찰로 회전 감소
+                }
+                
+                this.alpha -= 0.005;
             }
 
             draw() {
                 ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
                 ctx.globalAlpha = this.alpha;
-                ctx.fillStyle = this.color;
+                
+                // 유리 질감 렌더링
+                ctx.fillStyle = "rgba(180, 220, 255, 0.4)";
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+                ctx.lineWidth = 1.5;
+
                 ctx.beginPath();
-                // 원형으로 그려서 더 부드러운 폭발 표현
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.moveTo(this.points[0].x, this.points[0].y);
+                for(let i=1; i<this.points.length; i++) {
+                    ctx.lineTo(this.points[i].x, this.points[i].y);
+                }
+                ctx.closePath();
                 ctx.fill();
+                ctx.stroke();
+                
+                // 유리 반사광 효과
+                ctx.beginPath();
+                ctx.moveTo(this.points[0].x, this.points[0].y);
+                ctx.lineTo(this.points[1].x, this.points[1].y);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                ctx.stroke();
+
                 ctx.restore();
             }
         }
 
-        function explode() {
-            if (!box.alive) {
-                // 이미 터졌다면 다시 초기화해서 무한 클릭 가능하게 설정
-                box.alive = true;
-                particles = [];
-                return;
-            }
-            
-            box.alive = false;
+        function createGlass(targetX, targetY) {
+            const rows = 12;
+            const cols = 10;
+            const w = 300 / cols;
+            const h = 400 / rows;
+            const startX = canvas.width / 2 - 150;
+            const startY = canvas.height / 2 - 200;
 
-            // 조각 개수를 늘려 더 화려하게 (150개)
-            for (let i = 0; i < 150; i++) {
-                particles.push(new Particle(
-                    box.x + box.size / 2, 
-                    box.y + box.size / 2, 
-                    `hsl(${Math.random() * 50 + 10}, 100%, 50%)` // 불꽃 같은 오렌지/옐로우 계열
-                ));
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    // 각 조각을 불규칙한 다각형으로 생성
+                    const px = startX + i * w;
+                    const py = startY + j * h;
+                    
+                    const points = [
+                        {x: -w/2, y: -h/2}, {x: w/2, y: -h/2}, 
+                        {x: w/2, y: h/2}, {x: -w/2, y: h/2}
+                    ].map(p => ({
+                        x: p.x + (Math.random() - 0.5) * 15,
+                        y: p.y + (Math.random() - 0.5) * 15
+                    }));
+
+                    shards.push(new Shard(points, px + w/2, py + h/2, targetX, targetY));
+                }
             }
         }
 
         function animate() {
-            // 잔상 효과를 위해 살짝 불투명하게 덮기 (더 역동적임)
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillStyle = '#050508';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (box.alive) {
-                ctx.fillStyle = '#ff4d00';
-                ctx.fillRect(box.x, box.y, box.size, box.size);
-                ctx.fillStyle = 'white';
-                ctx.font = '14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('CLICK TO BOOM!', box.x + box.size / 2, box.y + box.size / 2 + 5);
+            if (!isBroken) {
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.strokeRect(canvas.width/2 - 150, canvas.height/2 - 200, 300, 400);
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center";
+                ctx.fillText("유리를 클릭해서 파괴하세요", canvas.width/2, canvas.height/2);
             }
 
-            particles.forEach((p, index) => {
-                p.update();
-                p.draw();
-                if (p.alpha <= 0) particles.splice(index, 1);
+            shards.forEach((s, i) => {
+                s.update();
+                s.draw();
+                if (s.alpha <= 0) shards.splice(i, 1);
             });
 
             requestAnimationFrame(animate);
         }
 
-        canvas.addEventListener('mousedown', explode);
-        
-        // 창 크기 조절 대응
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            box.x = canvas.width / 2 - 50;
-            box.y = canvas.height / 2 - 50;
+        canvas.addEventListener('mousedown', (e) => {
+            if(!isBroken) {
+                isBroken = true;
+                createGlass(e.clientX, e.clientY);
+            } else if (shards.length === 0) {
+                isBroken = false;
+            }
         });
 
         animate();
