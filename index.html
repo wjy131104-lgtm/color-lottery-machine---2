@@ -2,162 +2,327 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>정밀 유리 파쇄 시뮬레이터</title>
+    <title>물리 구조 실험실</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; color: white; font-family: sans-serif; }
-        #controls { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; z-index: 10; }
-        canvas { display: block; cursor: crosshair; }
-        input { cursor: pointer; }
+        body { margin: 0; overflow: hidden; background: #1e1e1e; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
+        
+        /* UI 패널 스타일 */
+        #ui {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0, 0, 0, 0.8); padding: 15px;
+            border-radius: 8px; border: 1px solid #444; color: white;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        button {
+            padding: 8px; background: #444; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold;
+        }
+        button:hover { background: #666; }
+        button.active { background: #ff4757; color: white; }
+        .info { font-size: 12px; color: #aaa; margin-top: 5px; }
+        
+        #canvas { cursor: crosshair; }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <label>재생 속도 (Slow Motion): </label>
-        <input type="range" id="speedRange" min="0" max="1" step="0.01" value="0.2">
-        <span id="speedVal">0.2</span>
-        <p style="font-size: 12px; color: #aaa;">유리를 클릭하면 쩌저적 갈라집니다.</p>
+
+    <div id="ui">
+        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">🛠️ 자재 선택</div>
+        <button onclick="setMaterial('wood')" id="btn-wood" class="active">🪵 나무 (가볍고 잘 부러짐)</button>
+        <button onclick="setMaterial('steel')" id="btn-steel">⛓️ 강철 (무겁고 튼튼함)</button>
+        <button onclick="setMaterial('gold')" id="btn-gold">🪙 금 (아주 무겁고 무름)</button>
+        <hr style="width: 100%; border: 0.5px solid #555;">
+        <button onclick="spawnWeight()">⚖️ 100kg 무게추 투하</button>
+        <button onclick="resetSim()">🔄 초기화</button>
+        <div class="info">
+            좌클릭 드래그: 구조물 건설 (용접)<br>
+            우클릭: 구조물 삭제/절단<br>
+            빨간색 선: 파손 위험 (응력 집중)
+        </div>
     </div>
+
     <canvas id="canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const speedRange = document.getElementById('speedRange');
-        const speedVal = document.getElementById('speedVal');
-
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        let shards = [];
-        let isBroken = false;
-        let timeScale = 0.2;
+        // 물리 엔진 설정
+        const gravity = 0.5;
+        const friction = 0.99;
+        const bounce = 0.7;
 
-        speedRange.oninput = () => {
-            timeScale = parseFloat(speedRange.value);
-            speedVal.innerText = timeScale;
+        // 재료 속성 DB
+        const MATERIALS = {
+            wood:  { color: '#8B4513', strength: 1.1, weight: 1, stiff: 0.5 }, // strength: 끊어지는 한계
+            steel: { color: '#A9A9A9', strength: 2.5, weight: 2, stiff: 1.0 },
+            gold:  { color: '#FFD700', strength: 1.5, weight: 5, stiff: 0.2 }
         };
 
-        class Shard {
-            constructor(points, centerX, centerY, targetX, targetY) {
-                this.points = points;
-                this.x = centerX;
-                this.y = centerY;
-                
-                // 물리: 충격 지점에서 밖으로 밀어내는 힘
-                const angle = Math.atan2(centerY - targetY, centerX - targetX);
-                const dist = Math.hypot(centerX - targetX, centerY - targetY);
-                const force = (300 / (dist + 30)) * 5;
+        let currentMat = 'wood';
+        let points = [];
+        let sticks = [];
 
-                this.vx = Math.cos(angle) * force;
-                this.vy = Math.sin(angle) * force;
-                this.rotation = 0;
-                this.vRotation = (Math.random() - 0.5) * 0.2;
-                
-                this.gravity = 0.5;
-                this.friction = 0.99;
-                this.alpha = 1;
+        // 마우스 상호작용 변수
+        let isDragging = false;
+        let dragStartPoint = null;
+        let mouseX, mouseY;
+
+        // === 물리 클래스 정의 ===
+        class Point {
+            constructor(x, y, pinned = false, mass = 1) {
+                this.x = x;
+                this.y = y;
+                this.oldx = x;
+                this.oldy = y;
+                this.pinned = pinned; // 고정된 점인가? (바닥 등)
+                this.mass = mass;
             }
 
             update() {
-                // 슬라이더 값을 물리 연산에 곱함
-                this.vx *= this.friction;
-                this.vy += this.gravity * timeScale;
-                this.x += this.vx * timeScale;
-                this.y += this.vy * timeScale;
-                this.rotation += this.vRotation * timeScale;
+                if (this.pinned) return;
+                
+                // Verlet Integration (속도 = 현재위치 - 이전위치)
+                let vx = (this.x - this.oldx) * friction;
+                let vy = (this.y - this.oldy) * friction;
+
+                this.oldx = this.x;
+                this.oldy = this.y;
+
+                this.x += vx;
+                this.y += vy;
+                this.y += gravity * this.mass; // 질량에 따른 중력 가속
 
                 // 바닥 충돌
-                if (this.y > canvas.height - 10) {
-                    this.y = canvas.height - 10;
-                    this.vy *= -0.2; // 에너지를 많이 잃고 멈춤
-                    this.vRotation *= 0.5;
+                if (this.y > canvas.height) {
+                    this.y = canvas.height;
+                    this.oldy = this.y + vy * bounce;
                 }
+            }
+        }
+
+        class Stick {
+            constructor(p1, p2, materialKey) {
+                this.p1 = p1;
+                this.p2 = p2;
+                this.mat = MATERIALS[materialKey];
+                this.length = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                this.active = true;
+            }
+
+            update() {
+                if (!this.active) return;
+
+                const dx = this.p2.x - this.p1.x;
+                const dy = this.p2.y - this.p1.y;
+                const dist = Math.hypot(dx, dy);
                 
-                if(isBroken) this.alpha -= 0.002 * timeScale;
+                // 파손 로직: 원래 길이보다 일정 비율 이상 늘어나면 끊어짐
+                // strength가 낮을수록 잘 끊어짐
+                const stress = dist / this.length;
+                if (stress > this.mat.strength) {
+                    this.active = false; // 뚝 끊어짐
+                    return;
+                }
+
+                // 길이 보정 (스프링처럼 원래 길이로 돌아가려는 힘)
+                const difference = this.length - dist;
+                const percent = difference / dist / 2;
+                const offsetX = dx * percent * this.mat.stiff; // stiff가 높으면 딱딱함
+                const offsetY = dy * percent * this.mat.stiff;
+
+                if (!this.p1.pinned) {
+                    this.p1.x -= offsetX;
+                    this.p1.y -= offsetY;
+                }
+                if (!this.p2.pinned) {
+                    this.p2.x += offsetX;
+                    this.p2.y += offsetY;
+                }
             }
 
             draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
-                ctx.globalAlpha = Math.max(0, this.alpha);
+                if (!this.active) return;
                 
-                ctx.fillStyle = "rgba(150, 200, 255, 0.2)";
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
-                ctx.lineWidth = 0.5;
+                // 응력 시각화: 많이 늘어날수록 빨간색으로 변함
+                const stress = Math.hypot(this.p2.x - this.p1.x, this.p2.y - this.p1.y) / this.length;
+                let color = this.mat.color;
+                
+                if (stress > this.mat.strength * 0.8) {
+                    color = '#ff0000'; // 끊어지기 직전 경고
+                    ctx.lineWidth = 3;
+                } else {
+                    ctx.lineWidth = 2 + (this.mat.weight * 0.5); // 무거운 재질은 두껍게
+                }
 
                 ctx.beginPath();
-                ctx.moveTo(this.points[0].x, this.points[0].y);
-                for(let i=1; i<this.points.length; i++) {
-                    ctx.lineTo(this.points[i].x, this.points[i].y);
-                }
-                ctx.closePath();
-                ctx.fill();
+                ctx.strokeStyle = color;
+                ctx.moveTo(this.p1.x, this.p1.y);
+                ctx.lineTo(this.p2.x, this.p2.y);
                 ctx.stroke();
-                ctx.restore();
             }
         }
 
-        function createShatter(tx, ty) {
-            const rings = 8;     // 방사형 고리 개수
-            const segments = 12; // 조각 분할 개수
-            const radiusStep = 40;
+        // === 시뮬레이션 제어 함수 ===
+        function setMaterial(mat) {
+            currentMat = mat;
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mat}`).classList.add('active');
+        }
 
-            for (let r = 0; r < rings; r++) {
-                for (let s = 0; s < segments; s++) {
-                    const angle1 = (s / segments) * Math.PI * 2;
-                    const angle2 = ((s + 1) / segments) * Math.PI * 2;
-                    const r1 = r * radiusStep;
-                    const r2 = (r + 1) * radiusStep;
+        function spawnWeight() {
+            // 무거운 사각형 투하
+            let startX = window.innerWidth / 2;
+            let startY = 50;
+            let w = 40;
+            
+            // 점 4개 생성
+            let p1 = new Point(startX, startY, false, 5);
+            let p2 = new Point(startX + w, startY, false, 5);
+            let p3 = new Point(startX + w, startY + w, false, 5);
+            let p4 = new Point(startX, startY + w, false, 5);
+            
+            points.push(p1, p2, p3, p4);
 
-                    // 거미줄 모양의 4개 꼭짓점 계산
-                    const p1 = { x: Math.cos(angle1) * r1, y: Math.sin(angle1) * r1 };
-                    const p2 = { x: Math.cos(angle2) * r1, y: Math.sin(angle2) * r1 };
-                    const p3 = { x: Math.cos(angle2) * r2, y: Math.sin(angle2) * r2 };
-                    const p4 = { x: Math.cos(angle1) * r2, y: Math.sin(angle1) * r2 };
+            // 서로 연결해서 단단한 덩어리로 만듦 (X자 포함)
+            sticks.push(new Stick(p1, p2, 'steel'));
+            sticks.push(new Stick(p2, p3, 'steel'));
+            sticks.push(new Stick(p3, p4, 'steel'));
+            sticks.push(new Stick(p4, p1, 'steel'));
+            sticks.push(new Stick(p1, p3, 'steel')); // 대각선 지지대
+            sticks.push(new Stick(p2, p4, 'steel'));
+        }
 
-                    const centerX = tx + (p1.x + p3.x) / 2;
-                    const centerY = ty + (p1.y + p3.y) / 2;
+        function resetSim() {
+            points = [];
+            sticks = [];
+            // 기본 바닥 생성
+            createBase();
+        }
 
-                    // 상대 좌표로 변환
-                    const localPoints = [p1, p2, p3, p4].map(p => ({
-                        x: p.x - (centerX - tx),
-                        y: p.y - (centerY - ty)
-                    }));
+        function createBase() {
+            // 바닥에 고정점 2개 생성
+            let p1 = new Point(window.innerWidth / 2 - 200, window.innerHeight - 100, true);
+            let p2 = new Point(window.innerWidth / 2 + 200, window.innerHeight - 100, true);
+            points.push(p1, p2);
+        }
 
-                    shards.push(new Shard(localPoints, centerX, centerY, tx, ty));
+        // === 마우스 이벤트 ===
+        // 가장 가까운 점 찾기 (용접용)
+        function findNearestPoint(x, y) {
+            let nearest = null;
+            let minDist = 20; // 20px 이내면 붙음
+            for (let p of points) {
+                let d = Math.hypot(p.x - x, p.y - y);
+                if (d < minDist) {
+                    minDist = d;
+                    nearest = p;
                 }
             }
+            return nearest;
         }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 2) return; // 우클릭 무시
+            
+            isDragging = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            // 기존 점 근처에서 시작하면 그 점을 선택, 아니면 새 점 생성
+            let existing = findNearestPoint(mouseX, mouseY);
+            if (existing) {
+                dragStartPoint = existing;
+            } else {
+                let newP = new Point(mouseX, mouseY, false, MATERIALS[currentMat].weight);
+                points.push(newP);
+                dragStartPoint = newP;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // 드래그 끝난 위치에 점 생성 또는 연결
+            let endPoint = findNearestPoint(mouseX, mouseY);
+            if (!endPoint) {
+                endPoint = new Point(mouseX, mouseY, false, MATERIALS[currentMat].weight);
+                points.push(endPoint);
+            }
+
+            // 시작점과 끝점이 다르면 연결 (용접)
+            if (dragStartPoint !== endPoint) {
+                sticks.push(new Stick(dragStartPoint, endPoint, currentMat));
+            }
+            dragStartPoint = null;
+        });
+        
+        // 우클릭 삭제
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            // 마우스 근처의 점과 선 삭제
+            let mx = e.clientX, my = e.clientY;
+            sticks = sticks.filter(s => {
+                // 선과 점 사이 거리 계산 (점과 직선 사이 거리 공식)
+                let dist = Math.abs((s.p2.y - s.p1.y)*mx - (s.p2.x - s.p1.x)*my + s.p2.x*s.p1.y - s.p2.y*s.p1.x) / 
+                           Math.hypot(s.p2.y - s.p1.y, s.p2.x - s.p1.x);
+                return dist > 10; // 10px 이내면 삭제
+            });
+        });
+
+        // === 메인 루프 ===
+        createBase();
 
         function animate() {
-            ctx.fillStyle = '#050505';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            shards.forEach((s, i) => {
-                s.update();
-                s.draw();
-                if (s.alpha <= 0) shards.splice(i, 1);
+            // 물리 업데이트 (반복 횟수가 많을수록 안정적)
+            for (let i = 0; i < 3; i++) {
+                points.forEach(p => p.update());
+                sticks.forEach(s => s.update());
+            }
+
+            // 그리기
+            sticks.forEach(s => s.draw());
+            
+            // 점 그리기 (용접 포인트)
+            ctx.fillStyle = '#fff';
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
             });
 
-            if (shards.length === 0) isBroken = false;
+            // 드래그 중인 선 미리보기
+            if (isDragging && dragStartPoint) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#666';
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(dragStartPoint.x, dragStartPoint.y);
+                ctx.lineTo(mouseX, mouseY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
 
             requestAnimationFrame(animate);
         }
 
-        canvas.addEventListener('mousedown', (e) => {
-            if (!isBroken) {
-                isBroken = true;
-                createShatter(e.clientX, e.clientY);
-            }
-        });
-
+        animate();
+        
+        // 창 크기 조절
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            resetSim();
         });
 
-        animate();
     </script>
 </body>
 </html>
