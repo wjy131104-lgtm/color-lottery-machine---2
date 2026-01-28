@@ -2,76 +2,89 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>정밀 물리 유리 파괴</title>
+    <title>정밀 유리 파쇄 시뮬레이터</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
-        canvas { display: block; }
+        body { margin: 0; overflow: hidden; background: #050505; color: white; font-family: sans-serif; }
+        #controls { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; z-index: 10; }
+        canvas { display: block; cursor: crosshair; }
+        input { cursor: pointer; }
     </style>
 </head>
 <body>
+    <div id="controls">
+        <label>재생 속도 (Slow Motion): </label>
+        <input type="range" id="speedRange" min="0" max="1" step="0.01" value="0.2">
+        <span id="speedVal">0.2</span>
+        <p style="font-size: 12px; color: #aaa;">유리를 클릭하면 쩌저적 갈라집니다.</p>
+    </div>
     <canvas id="canvas"></canvas>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const speedRange = document.getElementById('speedRange');
+        const speedVal = document.getElementById('speedVal');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let shards = [];
         let isBroken = false;
+        let timeScale = 0.2;
+
+        speedRange.oninput = () => {
+            timeScale = parseFloat(speedRange.value);
+            speedVal.innerText = timeScale;
+        };
 
         class Shard {
             constructor(points, centerX, centerY, targetX, targetY) {
-                this.points = points; // 다각형 꼭짓점들
+                this.points = points;
                 this.x = centerX;
                 this.y = centerY;
                 
-                // 폭발 물리: 충격 지점에서 멀어지는 방향으로 가속도 부여
+                // 물리: 충격 지점에서 밖으로 밀어내는 힘
                 const angle = Math.atan2(centerY - targetY, centerX - targetX);
                 const dist = Math.hypot(centerX - targetX, centerY - targetY);
-                const force = (500 / (dist + 50)) * 10; // 가까울수록 강한 힘
+                const force = (300 / (dist + 30)) * 5;
 
-                this.vx = Math.cos(angle) * force + (Math.random() - 0.5) * 5;
-                this.vy = Math.sin(angle) * force + (Math.random() - 0.5) * 5;
-                
+                this.vx = Math.cos(angle) * force;
+                this.vy = Math.sin(angle) * force;
                 this.rotation = 0;
-                this.vRotation = (Math.random() - 0.5) * 0.4; // 회전 속도
+                this.vRotation = (Math.random() - 0.5) * 0.2;
                 
-                this.gravity = 0.6;
-                this.friction = 0.98; // 공기 저항
-                this.bounce = -0.4;   // 바닥 탄성
+                this.gravity = 0.5;
+                this.friction = 0.99;
                 this.alpha = 1;
             }
 
             update() {
+                // 슬라이더 값을 물리 연산에 곱함
                 this.vx *= this.friction;
-                this.vy *= this.friction;
-                this.vy += this.gravity;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.rotation += this.vRotation;
+                this.vy += this.gravity * timeScale;
+                this.x += this.vx * timeScale;
+                this.y += this.vy * timeScale;
+                this.rotation += this.vRotation * timeScale;
 
-                // 바닥 충돌 물리
-                if (this.y > canvas.height - 20) {
-                    this.y = canvas.height - 20;
-                    this.vy *= this.bounce;
-                    this.vRotation *= 0.8; // 마찰로 회전 감소
+                // 바닥 충돌
+                if (this.y > canvas.height - 10) {
+                    this.y = canvas.height - 10;
+                    this.vy *= -0.2; // 에너지를 많이 잃고 멈춤
+                    this.vRotation *= 0.5;
                 }
                 
-                this.alpha -= 0.005;
+                if(isBroken) this.alpha -= 0.002 * timeScale;
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.rotation);
-                ctx.globalAlpha = this.alpha;
+                ctx.globalAlpha = Math.max(0, this.alpha);
                 
-                // 유리 질감 렌더링
-                ctx.fillStyle = "rgba(180, 220, 255, 0.4)";
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-                ctx.lineWidth = 1.5;
+                ctx.fillStyle = "rgba(150, 200, 255, 0.2)";
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+                ctx.lineWidth = 0.5;
 
                 ctx.beginPath();
                 ctx.moveTo(this.points[0].x, this.points[0].y);
@@ -81,56 +94,45 @@
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-                
-                // 유리 반사광 효과
-                ctx.beginPath();
-                ctx.moveTo(this.points[0].x, this.points[0].y);
-                ctx.lineTo(this.points[1].x, this.points[1].y);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-                ctx.stroke();
-
                 ctx.restore();
             }
         }
 
-        function createGlass(targetX, targetY) {
-            const rows = 12;
-            const cols = 10;
-            const w = 300 / cols;
-            const h = 400 / rows;
-            const startX = canvas.width / 2 - 150;
-            const startY = canvas.height / 2 - 200;
+        function createShatter(tx, ty) {
+            const rings = 8;     // 방사형 고리 개수
+            const segments = 12; // 조각 분할 개수
+            const radiusStep = 40;
 
-            for (let i = 0; i < cols; i++) {
-                for (let j = 0; j < rows; j++) {
-                    // 각 조각을 불규칙한 다각형으로 생성
-                    const px = startX + i * w;
-                    const py = startY + j * h;
-                    
-                    const points = [
-                        {x: -w/2, y: -h/2}, {x: w/2, y: -h/2}, 
-                        {x: w/2, y: h/2}, {x: -w/2, y: h/2}
-                    ].map(p => ({
-                        x: p.x + (Math.random() - 0.5) * 15,
-                        y: p.y + (Math.random() - 0.5) * 15
+            for (let r = 0; r < rings; r++) {
+                for (let s = 0; s < segments; s++) {
+                    const angle1 = (s / segments) * Math.PI * 2;
+                    const angle2 = ((s + 1) / segments) * Math.PI * 2;
+                    const r1 = r * radiusStep;
+                    const r2 = (r + 1) * radiusStep;
+
+                    // 거미줄 모양의 4개 꼭짓점 계산
+                    const p1 = { x: Math.cos(angle1) * r1, y: Math.sin(angle1) * r1 };
+                    const p2 = { x: Math.cos(angle2) * r1, y: Math.sin(angle2) * r1 };
+                    const p3 = { x: Math.cos(angle2) * r2, y: Math.sin(angle2) * r2 };
+                    const p4 = { x: Math.cos(angle1) * r2, y: Math.sin(angle1) * r2 };
+
+                    const centerX = tx + (p1.x + p3.x) / 2;
+                    const centerY = ty + (p1.y + p3.y) / 2;
+
+                    // 상대 좌표로 변환
+                    const localPoints = [p1, p2, p3, p4].map(p => ({
+                        x: p.x - (centerX - tx),
+                        y: p.y - (centerY - ty)
                     }));
 
-                    shards.push(new Shard(points, px + w/2, py + h/2, targetX, targetY));
+                    shards.push(new Shard(localPoints, centerX, centerY, tx, ty));
                 }
             }
         }
 
         function animate() {
-            ctx.fillStyle = '#050508';
+            ctx.fillStyle = '#050505';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            if (!isBroken) {
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-                ctx.strokeRect(canvas.width/2 - 150, canvas.height/2 - 200, 300, 400);
-                ctx.fillStyle = "white";
-                ctx.textAlign = "center";
-                ctx.fillText("유리를 클릭해서 파괴하세요", canvas.width/2, canvas.height/2);
-            }
 
             shards.forEach((s, i) => {
                 s.update();
@@ -138,16 +140,21 @@
                 if (s.alpha <= 0) shards.splice(i, 1);
             });
 
+            if (shards.length === 0) isBroken = false;
+
             requestAnimationFrame(animate);
         }
 
         canvas.addEventListener('mousedown', (e) => {
-            if(!isBroken) {
+            if (!isBroken) {
                 isBroken = true;
-                createGlass(e.clientX, e.clientY);
-            } else if (shards.length === 0) {
-                isBroken = false;
+                createShatter(e.clientX, e.clientY);
             }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         });
 
         animate();
